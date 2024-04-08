@@ -16,13 +16,13 @@ func main() {
 
 	filePath := os.Args[1]
 
-	content, functions, err := readAndExtractFunctions(filePath)
+	functions, err := readAndExtractFunctions(filePath)
 	if err != nil {
 		fmt.Println("Error processing file:", err)
 		return
 	}
 
-	sortedContent := sortFunctionsInContent(content, functions)
+	sortedContent := sortFunctionsInContent(functions)
 
 	err = writeSortedContentToFile(filePath, sortedContent)
 	if err != nil {
@@ -33,52 +33,41 @@ func main() {
 	fmt.Println("File processed and functions sorted successfully.")
 }
 
-func readAndExtractFunctions(filePath string) ([]string, []string, error) {
+func readAndExtractFunctions(filePath string) (map[string][]string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer file.Close()
 
-	var content []string
-	var functions []string
+	functionMap := make(map[string][]string)
+	currentFunction := ""
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		content = append(content, line)
 		if strings.HasPrefix(strings.TrimSpace(line), "func ") {
-			functions = append(functions, line)
+			currentFunction = line
 		}
+		functionMap[currentFunction] = append(functionMap[currentFunction], line)
 	}
 
 	if err = scanner.Err(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return content, functions, nil
+	return functionMap, nil
 }
 
-func sortFunctionsInContent(content []string, functions []string) []string {
-	sort.Strings(functions)
-	functionMap := make(map[string]bool)
-	for _, f := range functions {
-		functionMap[f] = true
+func sortFunctionsInContent(functionMap map[string][]string) []string {
+	var functionNames []string
+	for name := range functionMap {
+		functionNames = append(functionNames, name)
 	}
+	sort.Strings(functionNames)
 
 	var sortedContent []string
-	for _, line := range content {
-		if _, exists := functionMap[line]; !exists {
-			sortedContent = append(sortedContent, line)
-		} else {
-			for _, sortedFunc := range functions {
-				if !functionMap[sortedFunc] {
-					continue
-				}
-				sortedContent = append(sortedContent, sortedFunc)
-				functionMap[sortedFunc] = false
-				break
-			}
-		}
+	for _, name := range functionNames {
+		sortedContent = append(sortedContent, functionMap[name]...)
 	}
 
 	return sortedContent
