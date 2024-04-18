@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strings"
@@ -36,9 +37,13 @@ func main() {
 func readAndExtractFunctions(filePath string) (map[string][]string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err = file.Close(); err != nil {
+			log.Printf("failed to close file: %v", err)
+		}
+	}()
 
 	functionMap := make(map[string][]string)
 	currentFunction := ""
@@ -76,17 +81,22 @@ func sortFunctionsInContent(functionMap map[string][]string) []string {
 func writeSortedContentToFile(filePath string, content []string) error {
 	file, err := os.Create(filePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			fmt.Printf("failed to close file: %v", closeErr)
+		}
+	}()
 
 	writer := bufio.NewWriter(file)
 	for _, line := range content {
-		_, err = writer.WriteString(line + "\n")
-		if err != nil {
-			return err
+		if _, err = writer.WriteString(line + "\n"); err != nil {
+			return fmt.Errorf("failed to write line: %w", err)
 		}
 	}
-
-	return writer.Flush()
+	if err = writer.Flush(); err != nil {
+		return fmt.Errorf("failed to flush writer: %w", err)
+	}
+	return nil
 }
